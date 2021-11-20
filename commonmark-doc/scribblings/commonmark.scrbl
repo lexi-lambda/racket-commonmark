@@ -14,6 +14,7 @@
 
 @title{CommonMark: Standard Markdown}
 @author{@author+email["Alexis King" "lexi.lambda@gmail.com"]}
+@margin-note{The source of this manual is available on @hyperlink["https://github.com/lexi-lambda/racket-commonmark/blob/master/commonmark-doc/scribblings/commonmark.scrbl"]{GitHub.}}
 
 @(define (reftech . pre-content)
    (apply tech pre-content #:doc '(lib "scribblings/reference/reference.scrbl")))
