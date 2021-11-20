@@ -1,0 +1,24 @@
+name: build
+on: [push]
+defaults:
+  run:
+    working-directory: repo
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        racket-version: [ '7.4', '7.9', '8.0', '8.3', stable ]
+    steps:
+    - uses: actions/checkout@v2
+      with: { path: repo }
+    - uses: Bogdanp/setup-racket@v1.5
+      with:
+        version: ${{ matrix.racket-version }}
+        dest: '$GITHUB_WORKSPACE/racket'
+        sudo: never
+    - name: install
+      run: raco pkg install --installation --auto --link commonmark-{bench,doc,lib,test}
+    - name: test
+      run: raco test -ep commonmark-{bench,doc,lib,test}
