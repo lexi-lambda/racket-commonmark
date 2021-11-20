@@ -4,6 +4,7 @@
                      commonmark/struct
                      racket/base
                      racket/contract
+                     racket/port
                      (except-in xml document document? struct:document))
           racket/format
           racket/string
@@ -100,21 +101,27 @@ The @racketmodname[commonmark/parse] module provides functions for parsing Markd
 
 All of the bindings provided by @racketmodname[commonmark/parse] are also provided by @racketmodname[commonmark].}
 
-@defproc[(read-document [in input-port?]) document?]{
-Reads a Markdown @tech{document} from @racket[in].
-
-@(cm-examples
-  (define doc (read-document (open-input-string "*Hello*, **markdown**!")))
-  doc
-  (write-document-html doc))}
-
 @defproc[(string->document [str string?]) document?]{
-Like @racket[read-document], but the input is a @reftech{string} rather than an @reftech{input port}.
+Parses @racket[str] as a Markdown @tech{document}.
 
 @(cm-examples
+  #:label "Example:"
   (define doc (string->document "*Hello*, **markdown**!"))
   doc
-  (write-document-html doc))}
+  (write-document-html doc))
+
+This function cannot fail: every string of Unicode characters can---somehow---be interpreted as Markdown. Of course, the interpretation may be somewhat tortured if applied to input for which such interpretation was not intended.}
+
+@defproc[(read-document [in input-port?]) document?]{
+Like @racket[string->document], but the input is read from the given @reftech{input port} rather than from a @reftech{string}.
+
+@(cm-examples
+  #:label "Example:"
+  (define doc (read-document (open-input-string "*Hello*, **markdown**!")))
+  doc
+  (write-document-html doc))
+
+This function can sometimes be more efficient than @racket[(read-document (port->string in))], but probably not significantly so, as the entire @tech{document} structure must be realized in memory regardless.}
 
 @section[#:tag "rendering-html"]{Rendering HTML}
 @declare-exporting[commonmark/render/html commonmark]
@@ -124,17 +131,17 @@ The @racketmodname[commonmark/render/html] module provides functions for renderi
 
 All of the bindings provided by @racketmodname[commonmark/render/html] are also provided by @racketmodname[commonmark].}
 
-@defproc[(write-document-html [doc document?] [out output-port? (current-output-port)]) void?]{
-Renders @racket[doc] to HTML and writes it to @racket[out].
-
-@(cm-examples
-  (write-document-html (string->document "*Hello*, **markdown**!")))}
-
 @defproc[(document->html [doc document?]) string?]{
-Like @racket[write-document-html], but returns the rendered HTML as a @reftech{string} rather than writing it to an @reftech{output port}.
+Renders @racket[doc] to HTML in the format recommended by the @CommonMark specification.
 
 @(cm-examples
   (document->html (string->document "*Hello*, **markdown**!")))}
+
+@defproc[(write-document-html [doc document?] [out output-port? (current-output-port)]) void?]{
+Like @racket[document->html], but writes the rendered HTML directly to @racket[out] rather than returning it as a @reftech{string}.
+
+@(cm-examples
+  (write-document-html (string->document "*Hello*, **markdown**!")))}
 
 @defproc[(document->xexprs [doc document?]) (listof xexpr/c)]{
 Like @racket[document->html], but returns the rendered HTML as a @reftech{list} of @X-expressions rather than as a string.
@@ -149,13 +156,13 @@ Note that @tech{HTML blocks} and @tech{HTML spans} are not parsed and may not ev
   (document->xexprs
    (string->document "A paragraph with <marquee>raw HTML</marquee>.")))
 
-This generally works out okay, since @racket[cdata] elements render directly as their unescaped content, but it is something of an abuse of @racket[cdata].}
+This generally works out okay, since @racket[cdata] elements render directly as their unescaped content, but it is, strictly speaking, an abuse of @racket[cdata].}
 
 @deftogether[(@defparam[current-italic-tag tag symbol? #:value 'em]
               @defparam[current-bold-tag tag symbol? #:value 'strong])]{
 These @reftech{parameters} determine which HTML tag is used to render @tech{italic spans} and @tech{bold spans}, respectively. The default values of @racket['em] and @racket['strong] correspond to those required by the @CommonMark specification, but this can be semantically incorrect if “emphasis” syntax is used for purposes other than emphasis, such as italicizing the title of a book.
 
-Reasonable alternative values for @racket[current-italic-tag] and @racket[current-bold-tag] include @racket['i], @racket['b], @racket['mark], @racket['cite], or @racket['defn], all of which are elements with semantic (rather than presentational) meaning in HTML5. Of course, the “most correct” choice depends on how @tech{italic spans} and @tech{bold spans} will actually be used, so no one set of choices can be universally called the best.
+Reasonable alternate values for @racket[current-italic-tag] and @racket[current-bold-tag] include @racket['i], @racket['b], @racket['mark], @racket['cite], or @racket['defn], all of which are elements with semantic (rather than presentational) meaning in HTML5. Of course, the “most correct” choice depends on how @tech{italic spans} and @tech{bold spans} will actually be used, so no one set of choices can be universally called the best.
 
 @(cm-examples
   (eval:alts
@@ -210,9 +217,9 @@ A parsed Markdown @deftech{document}, which is simply a @tech{flow}. It can be p
 @defproc[(block? [v any/c]) boolean?]{
 @see-cm[@tech{blocks} @cm-section{Blocks and inlines}]
 
-Returns @racket[#t] if @racket[v] is a @deftech{block}: a @tech{paragraph}, @tech{itemization}, @tech{block quote}, @tech{code block}, @tech{HTML block}, @tech{heading}, or @tech{thematic break}. Otherwise, it returns @racket[#f].
+Returns @racket[#t] if @racket[v] is a @deftech{block}: a @tech{paragraph}, @tech{itemization}, @tech{block quote}, @tech{code block}, @tech{HTML block}, @tech{heading}, or @tech{thematic break}. Otherwise, returns @racket[#f].
 
-A @deftech{flow} is a list of @tech{blocks}. The body of a @tech{document}, the contents of a @tech{block quote}, and each item of an @tech{itemization} are flows.}
+A @deftech{flow} is a list of @tech{blocks}. The body of a @tech{document}, the contents of a @tech{block quote}, and each item in an @tech{itemization} are flows.}
 
 @defstruct*[paragraph ([content inline?]) #:transparent]{
 @see-cm[@tech{paragraphs} @cm-section{Paragraphs}]
@@ -266,17 +273,17 @@ A @deftech{thematic break} is a @tech{block}. It is usually rendered as a horizo
 @defproc[(inline? [v any/c]) boolean?]{
 @see-cm[@tech{inline content} @cm-section{Blocks and inlines}]
 
-Returns @racket[#t] if @racket[v] is @deftech{inline content}: a @reftech{string}, @tech{italic span}, @tech{bold span}, @tech{code span}, @tech{link}, @tech{image}, @tech{HTML span}, @tech{hard line break}, or @reftech{list} of @tech{inline content}. Otherwise, it returns @racket[#f].}
+Returns @racket[#t] if @racket[v] is @deftech{inline content}: a @reftech{string}, @tech{italic span}, @tech{bold span}, @tech{code span}, @tech{link}, @tech{image}, @tech{HTML span}, @tech{hard line break}, or @reftech{list} of @tech{inline content}. Otherwise, returns @racket[#f].}
 
 @defstruct*[italic ([content inline?]) #:transparent]{
 @see-cm[@tech{italic spans} @cm-section{Emphasis and strong emphasis}]
 
-An @deftech{italic span} is @tech{inline content} that contains nested @tech{inline content}. By default, in HTML output, it corresponds to an @tt{<em>} element (but that can be configured using @racket[current-italic-tag]).}
+An @deftech{italic span} is @tech{inline content} that contains nested @tech{inline content}. By default, in HTML output, it corresponds to an @tt{<em>} element (but an alternate tag can be used by modifying @racket[current-italic-tag]).}
 
 @defstruct*[bold ([content inline?]) #:transparent]{
 @see-cm[@tech{bold spans} @cm-section{Emphasis and strong emphasis}]
 
-A @deftech{bold span} is @tech{inline content} that contains nested @tech{inline content}. By default, in HTML output, it corresponds to a @tt{<strong>} element (but that can be configured using @racket[current-bold-tag]).}
+A @deftech{bold span} is @tech{inline content} that contains nested @tech{inline content}. By default, in HTML output, it corresponds to a @tt{<strong>} element (but an alternate tag can be used by modifying @racket[current-bold-tag]).}
 
 @defstruct*[code ([content string?]) #:transparent]{
 @see-cm[@tech{code spans} @cm-section{Code spans}]
@@ -309,7 +316,7 @@ A @deftech{hard line break} is @tech{inline content} used for separating inline 
 The @racketmodname[commonmark] library is not the first Markdown parser implemented in Racket: it is long predated by the venerable @mod:markdown library, which in fact also predates the @CommonMark specification itself. The libraries naturally provide similar functionality, but there are some key differences:
 
 @itemlist[
-  @item{Most obviously and most significantly, @racketmodname[commonmark] conforms to the @CommonMark specification while @mod:markdown does not. This has both pros and cons:
+  @item{Most obviously and most significantly, @racketmodname[commonmark] conforms to the @CommonMark specification, while @mod:markdown does not. This has both pros and cons:
 
         @itemlist[
           @item{@racketmodname[commonmark] enjoys consistency with other @CommonMark implementations and is therefore likely to perform better on existing Markdown content than @mod:markdown is. Additionally, @racketmodname[commonmark] handles some tricky edge cases more gracefully than @mod:markdown does, such as @hyperlink["https://github.com/greghendershott/markdown/issues/64"]{parsing of emphasis adjacent to Unicode punctuation}.}
