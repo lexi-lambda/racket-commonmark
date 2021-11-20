@@ -430,14 +430,50 @@ positions in characters rather than bytes, which explains why we need to call
 
     (freeze-delimiter-runs nodes 0 num-nodes))
 
+  ;; Replaces all `delimiter-run` nodes with plain strings corresponding to
+  ;; their textual content. At the same time, it also “cleans up” the result by
+  ;; merging adjacent strings into a single string, which avoids lists of lots
+  ;; of tiny strings.
   (define (freeze-delimiter-runs vec start stop)
-    (for/list ([node (in-vector vec start stop)])
-      (freeze-delimiter-run node)))
+    (let loop ([i (sub1 stop)]
+               [nodes '()])
+      (cond
+        [(< i start)
+         (match nodes
+           [(list node) node]
+           [_           nodes])]
+        [else
+         (define node (freeze-delimiter-run (vector-ref vec i)))
+         (cond
+           ; If this node is a string, and there are still more nodes to go,
+           ; switch into string-scanning mode to concatenate runs of strings.
+           [(and (> i start) (string? node))
+            (let string-loop ([i (sub1 i)]
+                              [str-nodes (list node)])
+              (cond
+                [(< i start)
+                 (loop i (cons (string-append* str-nodes) nodes))]
+                [else
+                 (define node (freeze-delimiter-run (vector-ref vec i)))
+                 (if (string? node)
+                     (string-loop (sub1 i) (cons node str-nodes))
+                     (loop i (cons (string-append* str-nodes) nodes)))]))]
+           [else
+            (loop (sub1 i) (cons node nodes))])])))
 
   (define (freeze-delimiter-run node)
     (if (delimiter-run? node)
-        (make-string (delimiter-run-length node)
-                     (delimiter-run-char node))
+        (match* {(delimiter-run-length node) (delimiter-run-char node)}
+          ; These cases are overwhelmingly common, so special case them to
+          ; avoid allocating tons of identical tiny strings.
+          [{1 #\*} "*"]
+          [{1 #\_} "_"]
+          [{2 #\*} "**"]
+          [{2 #\_} "__"]
+          [{3 #\*} "***"]
+          [{3 #\_} "___"]
+          [{_ _} (make-string (delimiter-run-length node)
+                              (delimiter-run-char node))])
         node))
 
   ;; § 6.2 Emphasis and strong emphasis, Rule 9: If one of the delimiters can

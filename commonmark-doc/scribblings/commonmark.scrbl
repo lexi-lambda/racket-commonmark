@@ -44,7 +44,10 @@
 @(define (see-cm what where)
    @margin-note{See @where in the @CommonMark specification for more information about @|what|.})
 
-@(define make-commonmark-eval (make-eval-factory '(commonmark)))
+@(define make-commonmark-eval (make-eval-factory '(commonmark
+                                                   commonmark/struct
+                                                   racket/list
+                                                   racket/match)))
 @(define-syntax-rule (cm-examples body ...)
    (examples #:eval (make-commonmark-eval) #:once body ...))
 
@@ -154,24 +157,49 @@ These @reftech{parameters} determine which HTML tag is used to render @tech{ital
 Reasonable alternative values for @racket[current-italic-tag] and @racket[current-bold-tag] include @racket['i], @racket['b], @racket['mark], @racket['cite], or @racket['defn], all of which are elements with semantic (rather than presentational) meaning in HTML5. Of course, the “most correct” choice depends on how @tech{italic spans} and @tech{bold spans} will actually be used, so no one set of choices can be universally called the best.
 
 @(cm-examples
-  (parameterize ([current-italic-tag 'cite]
-                 [current-bold-tag 'mark])
-    (document->xexprs
-     (string->document
-      (string-append
-       "> First, programming is about stating and solving problems,\n"
-       "> and this activity normally takes place in a context with its\n"
-       "> own language of discourse; **good programmers ought to\n"
-       "> formulate this language as a programming language**.\n"
-       "\n"
-       "— *The Racket Manifesto* (emphasis mine)")))))}
+  (eval:alts
+   (parameterize ([current-italic-tag 'cite]
+                  [current-bold-tag 'mark])
+     (document->xexprs
+      (string->document
+       (string-append
+        "> First, programming is about stating and solving problems,\n"
+        "> and this activity normally takes place in a context with its\n"
+        "> own language of discourse; **good programmers ought to\n"
+        "> formulate this language as a programming language**.\n"
+        "\n"
+        "— *The Racket Manifesto* (emphasis mine)"))))
+   (parameterize ([current-italic-tag 'cite]
+                  [current-bold-tag 'mark])
+     ; In this example, we’ll end up with really long strings in the output
+     ; containing \n characters, which looks bad in the docs, so we want to quietly
+     ; split them on \n characters just to make the example’s output more readable.
+     (define (split-inline-strs v)
+       (match v
+         [(? list?) (flatten (map split-inline-strs v))]
+         [(document v) (document (split-inline-strs v))]
+         [(paragraph v) (paragraph (split-inline-strs v))]
+         [(blockquote v) (blockquote (split-inline-strs v))]
+         [(bold v) (bold (split-inline-strs v))]
+         [(italic v) (italic (split-inline-strs v))]
+         [(? string?) (regexp-split #px"(?<=\n)" v)]))
+     (document->xexprs
+      (split-inline-strs
+       (string->document
+        (string-append
+         "> First, programming is about stating and solving problems,\n"
+         "> and this activity normally takes place in a context with its\n"
+         "> own language of discourse; **good programmers ought to\n"
+         "> formulate this language as a programming language**.\n"
+         "\n"
+         "— *The Racket Manifesto* (emphasis mine)")))))))}
 
 @section[#:tag "structure"]{Document structure}
 @defmodule[commonmark/struct]{
 
 The @racket[commonmark/struct] module provides @reftech{structure types} used to represent the abstract syntax of Markdown content. The root of the syntax tree hierarchy is a @tech{document}, which contains @tech{blocks}, which in turn contain @tech{inline content}. Most users will not need to interact with these structures directly, but doing so can be useful to perform additional processing on the document before rendering it, or to render Markdown to a format other than HTML.
 
-Note that the bindings in this section are only provided by @racket[commonmark/struct], @emph{not} @racket[commonmark].}
+Note that the bindings in this section are only provided by @racketmodname[commonmark/struct], @emph{not} @racketmodname[commonmark].}
 
 @defstruct*[document ([blocks (listof block?)]) #:transparent]{
 A parsed Markdown @deftech{document}, which is simply a @tech{flow}. It can be parsed from Markdown input using @racket[read-document] or @racket[string->document] and can be rendered to HTML using @racket[document->html].}
