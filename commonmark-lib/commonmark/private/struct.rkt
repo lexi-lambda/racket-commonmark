@@ -1,6 +1,7 @@
 #lang racket/base
 
 (provide (struct-out document)
+         (struct-out footnote-definition)
 
          block?
          thematic-break thematic-break?
@@ -11,8 +12,6 @@
          (struct-out blockquote)
          (struct-out itemization)
 
-         (struct-out link-reference)
-
          inline?
          line-break line-break?
          (struct-out italic)
@@ -20,11 +19,13 @@
          (struct-out code)
          (struct-out link)
          (struct-out image)
-         (struct-out html))
+         (struct-out html)
+         (struct-out footnote-reference))
 
 ;; -----------------------------------------------------------------------------
 
-(struct document (blocks) #:transparent)
+(struct document (blocks footnotes) #:transparent)
+(struct footnote-definition (blocks label) #:transparent)
 
 (define (block? v)
   (or (thematic-break? v)
@@ -46,10 +47,6 @@
 (struct blockquote (blocks) #:transparent)
 (struct itemization (blockss style start-num) #:transparent)
 
-; Used internally to pass link reference definitions from the block parser to
-; the inline parser.
-(struct link-reference (dest title) #:transparent)
-
 (define (inline? v)
   (or (string? v)
       (and (list? v) (andmap inline? v))
@@ -59,7 +56,8 @@
       (code? v)
       (link? v)
       (image? v)
-      (html? v)))
+      (html? v)
+      (footnote-reference? v)))
 
 (define-values [line-break line-break?]
   (let ()
@@ -71,4 +69,4 @@
 (struct link (content dest title) #:transparent)
 (struct image (description source title) #:transparent)
 (struct html (content) #:transparent)
-
+(struct footnote-reference (label) #:transparent)

@@ -9,7 +9,8 @@
          "../struct.rkt"
          "common.rkt")
 
-(provide string->inline)
+(provide string->inline
+         (struct-out link-reference))
 
 ;; -----------------------------------------------------------------------------
 
@@ -85,7 +86,11 @@ Fortunately, enabling line counting has the convenient side effect of tracking
 positions in characters rather than bytes, which explains why we need to call
 `port-count-lines!` even though we never actually use line information. |#
 
-(define (string->inline str link-reference-defns)
+(struct link-reference (dest title) #:transparent)
+
+(define (string->inline str
+                        #:link-defns link-reference-defns
+                        #:footnote-defns footnote-defns)
   (define in (open-input-string str))
   (port-count-lines! in) ; see Note [Track positions in characters]
 
@@ -148,7 +153,13 @@ positions in characters rather than bytes, which explains why we need to call
                   [else
                    (define node (link content dest title))
                    (match-define-values [nodes closer last-char** _] (read-sequence last-char*))
-                   (values (cons node nodes) closer last-char** #t)])])])])]
+                   (values (cons node nodes) closer last-char** #t)])]
+               [(? footnote-reference? node)
+                (match-define-values [nodes closer last-char** _] (read-sequence last-char*))
+                (values (if image?
+                            (list* "!" node nodes)
+                            (cons node nodes))
+                        closer last-char** #t)])])])]
 
       [_
        (define-values [nodes closer last-char* has-link?] (read-sequence last-char))
@@ -356,18 +367,26 @@ positions in characters rather than bytes, which explains why we need to call
             (read-bytes end-pos in)
             (link-reference "" title-str)]))]))
 
-     ;; Collapsed reference links <https://spec.commonmark.org/0.30/#collapsed-reference-link>
-     ;;   and shortcut reference links <https://spec.commonmark.org/0.30/#shortcut-reference-link>
-     (match-and*
-      [(hash-ref link-reference-defns (normalize-link-label content-label-str) #f)
-       => link-ref
-       link-ref]
-      [(or (regexp-try-match #px"^\\[\\]" in)
-           ; A shortcut reference link must not be followed by a link label,
-           ; even if that link label is not defined.
-           (not (try-peek-link-label in)))
-       => _
-       link-ref])))
+     (let ()
+       (define normalized-label (normalize-link-label content-label-str))
+       (or
+        ;; Collapsed reference links <https://spec.commonmark.org/0.30/#collapsed-reference-link>,
+        ;;   and shortcut reference links <https://spec.commonmark.org/0.30/#shortcut-reference-link>
+        (match-and*
+         [(hash-ref link-reference-defns normalized-label #f) => link-ref]
+         [(or (regexp-try-match #px"^\\[\\]" in)
+              ; A shortcut reference link must not be followed by a link label,
+              ; even if that link label is not defined.
+              (not (try-peek-link-label in)))
+          => _
+          link-ref])
+
+        ;; Extension: Footnote references
+        (match-and*
+         [(string-prefix? normalized-label "^") => _
+          (define footnote-label (substring normalized-label 1))]
+         [(hash-ref footnote-defns footnote-label #f) => unnormalized-label
+          (footnote-reference unnormalized-label)])))))
 
   ;; Appendix A, Phase 2: inline structure
   (define (process-emphasis nodes-lst)

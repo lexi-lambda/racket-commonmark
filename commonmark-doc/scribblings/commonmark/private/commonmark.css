@@ -1,0 +1,31 @@
+.CmMdNotes {
+  font-size: small;
+  padding-left: 1em;
+}
+.CmMdNotes p {
+  margin-bottom: 0.25em;
+}
+
+.CmExample {
+  column-gap: 0.5em;
+  display: flex;
+  margin-bottom: 1em;
+  margin-top: 1em;
+}
+.CmExample > * {
+  flex: 1;
+}
+
+.CmExampleTitleLeft, .CmExampleTitleRight {
+  background-color: #eee;
+}
+.CmExampleTitleRight {
+  text-align: right;
+}
+.CmExampleTitleText {
+  padding: 0 0.5em;
+}
+
+.CmExampleContent {
+  margin: 0 0.5em;
+}

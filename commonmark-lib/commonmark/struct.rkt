@@ -7,7 +7,9 @@
          thematic-break thematic-break?
          line-break line-break?
          (contract-out
-          (struct document ([blocks (listof block?)]))
+          (struct document ([blocks (listof block?)]
+                            [footnotes (listof footnote-definition?)]))
+          (struct footnote-definition ([blocks (listof block?)] [label string?]))
 
           (struct heading ([content inline?] [depth (integer-in 1 6)]))
           (struct code-block ([content string?] [info-string (or/c string? #f)]))
@@ -23,4 +25,5 @@
           (struct code ([content string?]))
           (struct link ([content inline?] [dest string?] [title (or/c string? #f)]))
           (struct image ([description inline?] [source string?] [title (or/c string? #f)]))
-          (struct html ([content string?]))))
+          (struct html ([content string?]))
+          (struct footnote-reference ([label string?]))))

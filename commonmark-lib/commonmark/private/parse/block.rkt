@@ -13,7 +13,9 @@
          "common.rkt"
          "inline.rkt")
 
-(provide read-document string->document)
+(provide read-document
+         string->document
+         current-parse-footnotes?)
 
 ;; -----------------------------------------------------------------------------
 
@@ -47,6 +49,8 @@
 
 ;; -----------------------------------------------------------------------------
 
+(define current-parse-footnotes? (make-parameter #f (λ (x) (and x #t))))
+
 (struct o:blockquote (blocks) #:transparent)
 (struct o:list  ; see Note [Lists overview]
   (blocks       ; blocks of the current open list item, or #f if no list item
@@ -61,6 +65,7 @@
    style        ; (or/c 'tight 'loose)
    start-num)   ; (or/c exact-nonnegative-integer? #f)
   #:transparent)
+(struct o:footnote-definition (blocks label) #:transparent)
 
 ; see Note [Open lists without an open item]
 (define (accumulate-list-blockss open-list)
@@ -82,8 +87,12 @@
   (read-document (open-input-string str)))
 
 (define (read-document in)
+  (define footnotes? (current-parse-footnotes?))
+
   (define root-blocks (make-gvector))
   (define link-reference-defns (make-hash))
+  (define footnote-defns (make-gvector))
+  (define footnote-defn-labels (make-hash))
 
   ;; ---------------------------------------------------------------------------
   ;; open blocks
@@ -121,7 +130,9 @@
                          ; see Note [Open list tightness]
                          [style (if (o:list-end-blank? oc)
                                     'loose
-                                    (o:list-style oc))])]))
+                                    (o:list-style oc))])]
+           [(o:footnote-definition blocks label)
+            (o:footnote-definition (cons block blocks) label)]))
        (gvector-set! open-containers (sub1 ocs) oc*)]))
 
   (define (open-leaf! new-open-leaf)
@@ -167,26 +178,30 @@
     ; If there’s an open leaf, we need to take care to close it /before/ we
     ; remove the open container.
     (close-leaf!)
-    (add-block!
-     #:close-unentered? #f
-     (match (gvector-remove-last! open-containers)
-       [(o:blockquote blocks)
-        (blockquote (reverse blocks))]
-       [(? o:list? open-list)
-        ; see Note [Transfer `end-blank?` to parent lists]
-        (when (and (o:list-end-blank? open-list)
-                   (not (zero? (gvector-count open-containers))))
-          (define last-idx (sub1 (gvector-count open-containers)))
-          (define parent-container (gvector-ref open-containers last-idx))
-          (when (o:list? parent-container)
-            (gvector-set! open-containers
-                          last-idx
-                          (struct-copy o:list parent-container
-                                       [end-blank? #t]))))
+    (define new-block
+      (match (gvector-remove-last! open-containers)
+        [(o:blockquote blocks)
+         (blockquote (reverse blocks))]
+        [(? o:list? open-list)
+         ; see Note [Transfer `end-blank?` to parent lists]
+         (when (and (o:list-end-blank? open-list)
+                    (not (zero? (gvector-count open-containers))))
+           (define last-idx (sub1 (gvector-count open-containers)))
+           (define parent-container (gvector-ref open-containers last-idx))
+           (when (o:list? parent-container)
+             (gvector-set! open-containers
+                           last-idx
+                           (struct-copy o:list parent-container
+                                        [end-blank? #t]))))
 
-        (itemization (reverse (accumulate-list-blockss open-list))
-                     (o:list-style open-list)
-                     (o:list-start-num open-list))])))
+         (itemization (reverse (accumulate-list-blockss open-list))
+                      (o:list-style open-list)
+                      (o:list-start-num open-list))]
+        [(o:footnote-definition blocks label)
+         (gvector-add! footnote-defns (footnote-definition (reverse blocks) label))
+         #f]))
+    (when new-block
+      (add-block! new-block #:close-unentered? #f)))
 
   (define (unentered-containers?)
     (< entered-containers (gvector-count open-containers)))
@@ -410,7 +425,10 @@
        (close-leaf!)
        (close-unentered-containers!)
        (document (for/list ([block (in-gvector root-blocks)])
-                   (finish-block-content block)))]
+                   (finish-block-content block))
+                 (for/list ([footnote-defn (in-gvector footnote-defns)])
+                   (match-define (footnote-definition blocks label) footnote-defn)
+                   (footnote-definition (map finish-block-content blocks) label)))]
       [else
        (mode:enter-containers)]))
 
@@ -451,7 +469,9 @@
                    (open-container! (o:list '() '() indent marker-char #f #f 'tight start-num)
                                     #:enter? #f)])
                 0])]
-         [else #f])]))
+         [else #f])]
+      [(? o:footnote-definition?)
+       (try-enter-indent 4)]))
 
   (define (mode:enter-containers)
     (cond
@@ -675,6 +695,27 @@
              (open-container! (o:list '() '() indent marker-char #f #f 'tight start-num))
              (mode:content-start)])]
 
+      ;; Extension: Footnote definitions
+      [(and footnotes?
+            (regexp-try/opt-indent
+             ; This is the regexp used by _scan_footnote_definition in cmark-gfm:
+             ;   <https://github.com/github/cmark-gfm/blob/766f161ef6d61019acf3a69f5099489e7d14cd49/src/scanners.re#L323>
+             ; Note that it consumes all whitespace after the label, so it is
+             ; impossible for a footnote to start with an indented code block on the
+             ; same line as the label (but one can begin on the following line).
+             (px "^"
+                 "\\[\\^"
+                 (:group "[^]" :space: "]+")
+                 "\\]:[ \t]*")))
+       => (match-lambda
+            [(list _ _ label-bytes)
+             (define label (bytes->string/utf-8 label-bytes))
+             (define normalized-label (normalize-link-label label))
+             (unless (hash-has-key? footnote-defn-labels normalized-label)
+               (hash-set! footnote-defn-labels normalized-label label))
+             (open-container! (o:footnote-definition '() label))
+             (mode:content-start)])]
+
       ;; § 4.8 Paragraphs
       [else
        (define line (~> (read-line in 'any)
@@ -717,14 +758,19 @@
   (define (finish-block-content block)
     (match block
       [(heading content depth)
-       (heading (string->inline content link-reference-defns) depth)]
+       (heading (parse-inline content) depth)]
       [(paragraph content)
-       (paragraph (string->inline content link-reference-defns))]
+       (paragraph (parse-inline content))]
       [(blockquote blocks)
        (blockquote (map finish-block-content blocks))]
       [(itemization blockss style start-num)
        (itemization (map (λ~>> (map finish-block-content)) blockss) style start-num)]
       [_ block]))
+
+  (define (parse-inline content)
+    (string->inline content
+                    #:link-defns link-reference-defns
+                    #:footnote-defns footnote-defn-labels))
 
   (mode:line-start))
 
