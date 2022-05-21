@@ -224,6 +224,23 @@ Reasonable alternate values for @racket[current-italic-tag] and @racket[current-
          "\n"
          "— *The Racket Manifesto* (emphasis mine)")))))))}
 
+@defparam[current-anchor-proc proc (-> string? string?) #:value values]{
+This @reftech{parameter} determines the content of HTML element @tt{id}s referenced by anchor links, such as @tech{footnote references} and @tech{backreference links}. It is set to a function that takes as its only argument the value which the renderer would use for the element’s @tt{id} by default. The return value of the function is used as the element’s @tt{id}.
+
+Use this parameter when it is likely that rendered @tech{documents} will appear together, such as on a blog that displays the full text of multiple posts on a single page. The use of a custom @racket[_proc] in these cases can prevent a scenario where the use of identical footnote labels (e.g. @racketvalfont{[^1]}, @racketvalfont{[^2]}, etc.) in multiple Markdown sources result in colliding anchor links.
+
+@(cm-examples
+  (define doc
+    (parameterize ([current-parse-footnotes? #t])
+      (string->document
+        (string-append "Hello[^1]\n"
+                       "\n"
+                       "[^1]: Goodbye."))))
+  ; Selecting only the body portion for brevity
+  (car (document->xexprs doc))
+  (parameterize ([current-anchor-proc (λ (id) (format "~a_post01" id))])
+    (car (document->xexprs doc))))}
+
 @section[#:tag "structure"]{Document structure}
 @defmodule[commonmark/struct]{
 
