@@ -18,12 +18,14 @@
           [write-document-html (->* [document?] [output-port?] void?)]
 
           [current-bold-tag (parameter/c symbol?)]
-          [current-italic-tag (parameter/c symbol?)]))
+          [current-italic-tag (parameter/c symbol?)]
+          [current-anchor-proc (parameter/c (-> string? string?))]))
 
 ;; -----------------------------------------------------------------------------
 
 (define current-bold-tag (make-parameter 'strong))
 (define current-italic-tag (make-parameter 'em))
+(define current-anchor-proc (make-parameter values))
 
 (define (document->html doc)
   (define out (open-output-string))
@@ -120,8 +122,8 @@
                 (append blocks backrefs)])))
 
     (define/public (footnote-definition-anchor label)
-      (~a "fn-" label))
+      ((current-anchor-proc) (~a "fn-" label)))
     (define/public (footnote-reference-anchor label ref-num)
-      (~a "fnref-" label (if (= ref-num 1) "" (~a "-" ref-num))))
+      ((current-anchor-proc) (~a "fnref-" label (if (= ref-num 1) "" (~a "-" ref-num)))))
 
     (super-new)))
