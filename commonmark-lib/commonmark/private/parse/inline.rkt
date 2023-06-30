@@ -10,6 +10,7 @@
          "common.rkt")
 
 (provide string->inline
+         current-parse-wikilinks?
          (struct-out link-reference))
 
 ;; -----------------------------------------------------------------------------
@@ -84,7 +85,30 @@ be wrong for multibyte characters.
 
 Fortunately, enabling line counting has the convenient side effect of tracking
 positions in characters rather than bytes, which explains why we need to call
-`port-count-lines!` even though we never actually use line information. |#
+`port-count-lines!` even though we never actually use line information.
+
+
+Note [Nested WikiLinks]
+~~~~~~~~~~~~~~~~~~~~~~~
+How should we handle nested WikiLinks, such as [[this [[nested]] example]]?
+
+MediaWiki, the engine behind Wikipedia, renders the above example as:
+
+  <p>[[this <a href="...">nested</a> example</p>
+
+In other words, MediaWiki avoids nested links by only considering the inner-most
+link. This is consistent with the handling of nested link in CommonMark.
+
+Other parsers handle nested WikiLinks differently. Obsidian, for instance,
+matches double-brackets "greedily" and parses the above example as
+
+  <p><a href="...">this [[nested</a> example]]</p>.
+
+Our implementation attempts to match the behavior of MediaWiki. However, we do
+not (yet) handle more complex Media Wiki features, such as the "pipe trick":
+<https://en.wikipedia.org/wiki/Help:Pipe_trick> |#
+
+(define current-parse-wikilinks? (make-parameter #f (λ (x) (and x #t))))
 
 (struct link-reference (dest title) #:transparent)
 
@@ -117,6 +141,31 @@ positions in characters rather than bytes, which explains why we need to call
     (match node
       [(or (? eof-object?) 'link-close)
        (values '() node last-char #f)]
+
+      ['wikilink-open
+       (define open-text "[[")
+       (match-define-values [_ _ open-pos] (port-next-location in))
+       (let loop ([last-char last-char] [nodes '()] [has-link? #f])
+         (define-values [nodes* closer* last-char* has-link?*] (read-sequence last-char))
+         (match closer*
+           [(? eof-object?)
+            (values (cons open-text (append nodes nodes*)) closer* last-char* has-link?*)]
+           ['link-close
+            (cond
+              [(eqv? (peek-char in) #\])
+               (read-char in)
+               (cond
+                 [(or has-link? has-link?*)
+                  (match-define-values [nodes** closer** last-char** _] (read-sequence last-char*))
+                  (values (cons open-text (append nodes nodes* (cons "]]" nodes**))) closer** last-char** #t)]
+                 [else
+                  (match-define-values [_ _ close-pos] (port-next-location in))
+                  (define inner-text (substring str (sub1 open-pos) (- close-pos 3)))
+                  (define node (parse-wikilink inner-text))
+                  (define-values [nodes** closer** last-char** has-link?**] (read-sequence last-char*))
+                  (values (cons node nodes**) closer** last-char** (or (wikilink? node) has-link?**))])]
+              [else
+               (loop last-char* (append nodes nodes* '("]")) (or has-link? has-link?*))])]))]
 
       [(or 'link-open 'image-open)
        (define image? (eq? node 'image-open))
@@ -254,8 +303,16 @@ positions in characters rather than bytes, which explains why we need to call
 
        (values (delimiter-run c len len opener? closer?) c)]
 
-      ;; § 6.3 Links
-      [#\[ (read-char in) (values 'link-open #\[)]
+      ;; § 6.3 Links (and WikiLinks)
+      [#\[
+       (read-char in)
+       (cond
+         [(and (current-parse-wikilinks?)
+               (eqv? (peek-char in) #\[))
+          (read-char in)
+          (values 'wikilink-open #\[)]
+         [else
+          (values 'link-open #\[)])]
       [#\] (read-char in) (values 'link-close #\])]
 
       [#\!
@@ -309,6 +366,20 @@ positions in characters rather than bytes, which explains why we need to call
        (raise-arguments-error 'lex-rx "lex failed"
                               "next char" (peek-char in)
                               "expected regexp" rx)]))
+
+  (define (parse-wikilink inner-text)
+    (define (process-label label-text)
+      (define label-node
+        (string->inline label-text
+                        #:link-defns #hash()
+                        #:footnote-defns #hash()))
+      (process-emphasis (list label-node)))
+    
+    (match (string-split inner-text #px"\\|" #:trim? #f #:repeat? #f)
+      [(list target label) (wikilink (process-label label) target)]
+      [(list target) (wikilink (process-label target) target)]
+      ; MediaWiki does not parse the string "[[]]" as link.
+      [(list) "[[]]"]))
 
   (define (try-read-link-target content-label-str)
     (or

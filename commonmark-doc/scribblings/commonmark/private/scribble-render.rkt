@@ -126,6 +126,8 @@
            (link-element #f _ (footnote-definition-tag label))
            (target-element #f _ (footnote-reference-tag label ref-num))
            (element 'superscript)))
+    (define/override (render-wikilink content dest)
+      (element (style #f (list (make-target-url dest))) content))
 
     (define/override (render-footnote-definition blocks label ref-count)
       (define multiple-refs? (> ref-count 1))

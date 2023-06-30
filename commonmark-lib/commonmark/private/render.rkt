@@ -86,6 +86,7 @@
               render-image
               render-html
               render-footnote-reference
+              render-wikilink
 
               render-footnote-definition)
 
@@ -156,7 +157,9 @@
                    (render-html content)]
                   [(footnote-reference label)
                    (match-define (footnote-info defn-num ref-num) (resolve-footnote-reference label))
-                   (render-footnote-reference label defn-num ref-num)]))))
+                   (render-footnote-reference label defn-num ref-num)]
+                  [(wikilink content dest)
+                   (render-wikilink (render-inline content) dest)]))))
 
     (define/public (render-inlines contents)
       (for*/list ([content (in-list contents)]
