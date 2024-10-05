@@ -124,11 +124,27 @@
            [(o:blockquote blocks)
             (o:blockquote (cons block blocks))]
            [(? o:list?)
+            (define transferred
+              (cond ((> ocs 1)
+                     (define last-idx (- ocs 2))
+                     (define parent-container (gvector-ref open-containers last-idx))
+                     (cond ((and (o:list? parent-container)
+                                 (o:list-end-blank? oc))
+                            (gvector-set! open-containers
+                                          last-idx
+                                          (struct-copy o:list parent-container
+                                                       [end-blank? #f]))
+                            #t)
+                           (else
+                            #f)))
+                    (else #f)))
             (struct-copy o:list oc
                          [blocks (cons block (o:list-blocks oc))]
                          [end-blank? #f]
                          ; see Note [Open list tightness]
-                         [style (if (o:list-end-blank? oc)
+                         [style (if (and (o:list-end-blank? oc)
+                                         (or (not transferred)
+                                             (not (itemization? block))))
                                     'loose
                                     (o:list-style oc))])]
            [(o:footnote-definition blocks label)
