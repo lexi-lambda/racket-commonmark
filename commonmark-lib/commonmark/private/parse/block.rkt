@@ -26,7 +26,7 @@
                                        (:* "\\1[ \t]*" #:min 2)
                                        :eol))
 
-;; <https://spec.commonmark.org/0.30/#list-marker>
+;; <https://spec.commonmark.org/0.31.2/#list-marker>
 (define-for-syntax (:list-marker #:interrupt? interrupt?)
   ; If the list is ordered, it can only interrupt a paragraph if the
   ; start number is 1.
@@ -330,7 +330,7 @@
           (set! partially-consumed-tab? #f)
           (list* full-match indent group-matches)]))))
 
-  ;; <https://spec.commonmark.org/0.30/#block-quote-marker>
+  ;; <https://spec.commonmark.org/0.31.2/#block-quote-marker>
   (define (try-read-blockquote-marker)
     (try-with-optional-indent
      (λ (pos indent)
@@ -355,7 +355,7 @@
           #t]
          [_ #f]))))
 
-  ;; <https://spec.commonmark.org/0.30/#list-marker>
+  ;; <https://spec.commonmark.org/0.31.2/#list-marker>
   (define (try-read-list-marker #:interrupt? interrupt?)
     (try-with-optional-indent
      (λ (pos indent)
@@ -545,7 +545,7 @@
                                          "h3" "h4" "h5" "h6" "head" "header" "hr" "html"
                                          "iframe" "legend" "li" "link" "main" "menu"
                                          "menuitem" "nav" "noframes" "ol" "optgroup"
-                                         "option" "p" "param" "section" "source"
+                                         "option" "p" "param" "search" "section"
                                          "summary" "table" "tbody" "td" "tfoot" "th"
                                          "thead" "title" "tr" "track" "ul"))
                           (:or "[ \t>]" :eol "/>"))))))
@@ -998,7 +998,7 @@ of the list item. |#
 ;; Link reference definitions
 
 ;; § 4.7 Link reference definitions
-;; <https://spec.commonmark.org/0.30/#link-reference-definition>
+;; <https://spec.commonmark.org/0.31.2/#link-reference-definition>
 (define (try-read-link-reference-definition in)
   (define (try-peek-eol start-pos)
     (match (regexp-match-peek-positions (px "^" "[ \t\r\n]*" :eol) in start-pos)

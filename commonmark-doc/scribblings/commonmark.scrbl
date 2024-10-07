@@ -43,7 +43,7 @@
                                  values))
    (apply hyperlink
           #:style style
-          (~a "https://spec.commonmark.org/0.30/#"
+          (~a "https://spec.commonmark.org/0.31.2/#"
               (~> (string-foldcase tag)
                   maybe-singularize
                   (string-replace #px"[^a-z]+" "-")))
@@ -70,7 +70,7 @@
 
 @defmodule[commonmark]{
 
-The @racketmodname[commonmark] library implements a @|CommonMark|-compliant Markdown parser. Currently, it passes all test cases in @hyperlink["https://spec.commonmark.org/0.30/"]{v0.30 of the specification}. By default, only the Markdown features specified by @CommonMark are supported, but non-standard support for @tech{footnotes} can be optionally enabled; see the @secref{extensions} section of this manual for more details.
+The @racketmodname[commonmark] library implements a @|CommonMark|-compliant Markdown parser. Currently, it passes all test cases in @hyperlink["https://spec.commonmark.org/0.31.2/"]{v0.31.2 of the specification}. By default, only the Markdown features specified by @CommonMark are supported, but non-standard support for @tech{footnotes} can be optionally enabled; see the @secref{extensions} section of this manual for more details.
 
 The @racketmodname[commonmark] module reprovides all of the bindings provided by @racketmodname[commonmark/parse] and @racketmodname[commonmark/render/html] (but @emph{not} the bindings provided by @racketmodname[commonmark/struct]).}
 

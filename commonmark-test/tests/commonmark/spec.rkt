@@ -11,7 +11,7 @@
 
          commonmark)
 
-(define-runtime-path spec.json "spec-0.30.json")
+(define-runtime-path spec.json "spec-0.31.2.json")
 
 (define color:reset #"\e(B\e[m")
 (define color:bold #"\e[1m")

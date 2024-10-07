@@ -29,10 +29,10 @@
   ;; § 6.5 Raw HTML
   (define :html-tag
     (let ()
-      (define :comment (:: "<!--" "(?!>|->)" (:* (:or "[^-]" "-[^-]")) "-->"))
-      (define :instruction (:: "<\\?" (:* (:or "[^?]" "\\?[^>]")) "\\?>"))
+      (define :comment (:: "<!--" (:or ">" "->" (:: (:*? ".") "-->"))))
+      (define :instruction (:: "<\\?" (:*? ".") "\\?>"))
       (define :declaration (:: "<!" "[a-zA-Z]" "[^>]*" ">"))
-      (define :cdata-section (:: "<!\\[CDATA\\[" (:* (:or "[^]]" "\\][^]]" "\\]\\][^>]")) "\\]\\]>"))
+      (define :cdata-section (:: "<!\\[CDATA\\[" (:*? ".") "\\]\\]>"))
 
       (:or (:html-open-close #:allow-newlines? #t) :comment :instruction :declaration :cdata-section))))
 
@@ -312,7 +312,7 @@ positions in characters rather than bytes, which explains why we need to call
 
   (define (try-read-link-target content-label-str)
     (or
-     ;; Full reference links <https://spec.commonmark.org/0.30/#reference-link>
+     ;; Full reference links <https://spec.commonmark.org/0.31.2/#reference-link>
      (match-and*
       [(try-peek-link-label in) => (list label-pos label-str)]
       [(hash-ref link-reference-defns label-str #f)
@@ -320,7 +320,7 @@ positions in characters rather than bytes, which explains why we need to call
        (read-bytes label-pos in)
        link-ref])
 
-     ;; Inline links <https://spec.commonmark.org/0.30/#inline-link>
+     ;; Inline links <https://spec.commonmark.org/0.31.2/#inline-link>
      (let ()
        (define (try-peek-end start-pos)
          (match-and*
@@ -370,8 +370,8 @@ positions in characters rather than bytes, which explains why we need to call
      (let ()
        (define normalized-label (normalize-link-label content-label-str))
        (or
-        ;; Collapsed reference links <https://spec.commonmark.org/0.30/#collapsed-reference-link>,
-        ;;   and shortcut reference links <https://spec.commonmark.org/0.30/#shortcut-reference-link>
+        ;; Collapsed reference links <https://spec.commonmark.org/0.31.2/#collapsed-reference-link>,
+        ;;   and shortcut reference links <https://spec.commonmark.org/0.31.2/#shortcut-reference-link>
         (match-and*
          [(hash-ref link-reference-defns normalized-label #f) => link-ref]
          [(or (regexp-try-match #px"^\\[\\]" in)

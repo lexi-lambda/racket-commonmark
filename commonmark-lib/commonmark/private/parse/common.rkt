@@ -33,11 +33,11 @@
 ;; § 2.1 Characters and lines
 
 (begin-for-syntax
-  ; <https://spec.commonmark.org/0.30/#line-ending>
+  ; <https://spec.commonmark.org/0.31.2/#line-ending>
   (define :newline (:: "\n|\r\n?"))
-  ; <https://spec.commonmark.org/0.30/#ascii-punctuation-character>
+  ; <https://spec.commonmark.org/0.31.2/#ascii-punctuation-character>
   (define :ascii-punctuation "[!-/:-@[-`{-~]")
-  ; <https://spec.commonmark.org/0.30/#ascii-control-character>
+  ; <https://spec.commonmark.org/0.31.2/#ascii-control-character>
   (define :ascii-control: "\0-\x1F\x7F")
 
   ; Often referred to in the spec using the phrase “spaces, tabs, and up to one
@@ -47,12 +47,12 @@
   (define :space* (:* "[" :space: "]"))
   (define :space+ (:+ "[" :space: "]"))
 
-  ; <https://spec.commonmark.org/0.30/#link-destination>
+  ; <https://spec.commonmark.org/0.31.2/#link-destination>
   (define :link-destination
     (:or "<([^\r\n]*?)(?<!\\\\)>"
          (:group "[^< " :ascii-control: "]")))
 
-  ;; § 6.5 Raw HTML <https://spec.commonmark.org/0.30/#raw-html>
+  ;; § 6.5 Raw HTML <https://spec.commonmark.org/0.31.2/#raw-html>
   (define (:html-open-close #:allow-newlines? allow-newlines?)
     (define-values [:sp: :sp* :sp+ :nl:]
       (if allow-newlines?
@@ -86,8 +86,8 @@
       (char<=? #\{ c #\~)))
 
 (define (unicode-punctuation? c)
-  (or (ascii-punctuation? c)
-      (memq (char-general-category c) '(pc pd pe pf pi po ps))))
+  (or (char-punctuation? c)
+      (char-symbolic? c)))
 
 ;; -----------------------------------------------------------------------------
 
@@ -106,7 +106,7 @@
                                 "\\]")
                             in start-pos)
     [(list peeked-bytes (app bytes->string/utf-8 label-str))
-     ; From <https://spec.commonmark.org/0.30/#link-label>:
+     ; From <https://spec.commonmark.org/0.31.2/#link-label>:
      ;   “Between these brackets there must be at least one character that is
      ;    not a space, tab, or line ending.”
      #:when (regexp-match? (px "[^" :space: "]") label-str)
@@ -114,13 +114,13 @@
            (normalize-link-label label-str))]
     [_ #f]))
 
-;; <https://spec.commonmark.org/0.30/#matches>
+;; <https://spec.commonmark.org/0.31.2/#matches>
 (define (normalize-link-label str)
   (~> (string-foldcase str)
       (string-trim (px :space+))
       (string-replace (px :space+) " ")))
 
-;; <https://spec.commonmark.org/0.30/#link-destination>
+;; <https://spec.commonmark.org/0.31.2/#link-destination>
 (define (try-peek-link-destination in [start-pos 0])
   (match (regexp-match-peek #px"^<([^\r\n]*?)(?<!\\\\)>" in start-pos)
     ; First, the simple case: a destination enclosed in <angle brackets>.
