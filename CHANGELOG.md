@@ -1,3 +1,14 @@
+## 1.2 (2024-10-07)
+
+* Updated from CommonMark v0.30 to v0.31.2. ([f28bafb](https://github.com/lexi-lambda/racket-commonmark/commit/f28bafb69a3cdf4ffc9f0f0a77aefadb507421f7))
+
+  The behavioral changes are quite minimal. The relevant bullets from [the CommonMark changelog](https://spec.commonmark.org/changelog.txt) are:
+
+  > * Add symbols to unicode punctuation (Titus Wormer).
+  > * Add `search` element to list of known block elements (Titus Wormer).
+  > * Remove `source` element as HTML block start condition (Lukas Spieß).
+  > * Remove restrictive limitation on inline comments; now we match the HTML spec (Titus Wormer).
+
 ## 1.1.1 (2024-10-07)
 
 * Fixed bug that caused inline links to sometimes fail to parse. ([#4](https://github.com/lexi-lambda/racket-commonmark/issues/4), [f96082a](https://github.com/lexi-lambda/racket-commonmark/commit/f96082a21d5577c57c5c00d916f666567cb41a1c))
