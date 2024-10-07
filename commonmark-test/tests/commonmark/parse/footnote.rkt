@@ -3,14 +3,8 @@
 (require commonmark
          commonmark/struct
          racket/match
-         racket/string
-         rackunit)
-
-(define (md . strs)
-  (string->document (string-join strs "\n")))
-(define (md* . strs)
-  (define doc (apply md strs))
-  (list doc (document->xexprs doc)))
+         rackunit
+         "../test-util.rkt")
 
 (check-equal? (md "A paragraph.[^1]"
                   ""

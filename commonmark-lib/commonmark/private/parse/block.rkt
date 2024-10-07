@@ -106,9 +106,9 @@
   ;; By default, `add-block!` also closes any unentered containers, which is
   ;; generally the right choice, since the start of a new block always closes
   ;; any unentered containers. However, functions like `close-leaf!` and
-  ;; `close-container!` call `add-block!` to close a previously-opened block,
-  ;; which should always be added to the innermost open container, so those
-  ;; functions set #:close-entered? to #f.
+  ;; `close-container!` call `add-block!` as part of the process of closing
+  ;; unentered containers, so they pass `#:close-unentered? #f` to avoid
+  ;; infinite recursion.
   (define (add-block! block #:close-unentered? [close-unentered? #t])
     (when close-unentered?
       (close-unentered-containers!))
@@ -178,30 +178,29 @@
     ; If there’s an open leaf, we need to take care to close it /before/ we
     ; remove the open container.
     (close-leaf!)
-    (define new-block
-      (match (gvector-remove-last! open-containers)
-        [(o:blockquote blocks)
-         (blockquote (reverse blocks))]
-        [(? o:list? open-list)
-         ; see Note [Transfer `end-blank?` to parent lists]
-         (when (and (o:list-end-blank? open-list)
-                    (not (zero? (gvector-count open-containers))))
-           (define last-idx (sub1 (gvector-count open-containers)))
-           (define parent-container (gvector-ref open-containers last-idx))
-           (when (o:list? parent-container)
-             (gvector-set! open-containers
-                           last-idx
-                           (struct-copy o:list parent-container
-                                        [end-blank? #t]))))
+    (match (gvector-remove-last! open-containers)
+      [(o:blockquote blocks)
+       (add-block! (blockquote (reverse blocks)) #:close-unentered? #f)]
 
-         (itemization (reverse (accumulate-list-blockss open-list))
-                      (o:list-style open-list)
-                      (o:list-start-num open-list))]
-        [(o:footnote-definition blocks label)
-         (gvector-add! footnote-defns (footnote-definition (reverse blocks) label))
-         #f]))
-    (when new-block
-      (add-block! new-block #:close-unentered? #f)))
+      [(? o:list? open-list)
+       (add-block! (itemization (reverse (accumulate-list-blockss open-list))
+                                (o:list-style open-list)
+                                (o:list-start-num open-list))
+                   #:close-unentered? #f)
+
+       ; See Note [Transfer `end-blank?` to parent lists].
+       (when (and (o:list-end-blank? open-list)
+                  (not (zero? (gvector-count open-containers))))
+         (define last-idx (sub1 (gvector-count open-containers)))
+         (define parent-container (gvector-ref open-containers last-idx))
+         (when (o:list? parent-container)
+           (gvector-set! open-containers
+                         last-idx
+                         (struct-copy o:list parent-container
+                                      [end-blank? #t]))))]
+
+      [(o:footnote-definition blocks label)
+       (gvector-add! footnote-defns (footnote-definition (reverse blocks) label))]))
 
   (define (unentered-containers?)
     (< entered-containers (gvector-count open-containers)))
@@ -958,6 +957,24 @@ that the outer list is loose, since the blank line will set `end-blank?` on the
 inner list, not the outer one. Therefore, to ensure the outer list is properly
 marked loose, we must transfer the value of `end-blank?` to any immediately-
 enclosing parent list whenever a list is closed.
+
+Note that it is critical that we perform this transfer /after/ we’ve already
+added the child list to the parent. If we transferred `end-blank?` to the parent
+/before/ adding the child list, we’d accidentally interpret
+
+    * foo⏎
+      * bar⏎
+    ⏎
+
+essentially as if it were
+
+    * foo⏎
+    ⏎
+      * bar⏎
+
+which would result in the outer list incorrectly being marked loose with no
+trailing newline. (This may seem obvious, but we previously got this wrong; see
+GitHub issue #5.)
 
 One might wonder whether it’s safe to only do this transferring to immediately-
 enclosing lists, as there could be a blockquote in the way:
