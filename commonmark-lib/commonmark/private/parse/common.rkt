@@ -122,7 +122,7 @@
 
 ;; <https://spec.commonmark.org/0.30/#link-destination>
 (define (try-peek-link-destination in [start-pos 0])
-  (match (regexp-match-peek #px"<([^\r\n]*?)(?<!\\\\)>" in start-pos)
+  (match (regexp-match-peek #px"^<([^\r\n]*?)(?<!\\\\)>" in start-pos)
     ; First, the simple case: a destination enclosed in <angle brackets>.
     [(list peeked-bytes dest-bytes)
      (list (+ start-pos (bytes-length peeked-bytes))
