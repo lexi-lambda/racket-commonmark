@@ -92,7 +92,7 @@ In @racketmodname[commonmark], processing Markdown is split into two steps: @sec
   (define doc (string->document "*Hello*, **markdown**!"))
   doc)
 
-A @tech{document} is an abstract syntax tree that represents Markdown content. If you’d like, you can choose to render it however you wish, but most uses of Markdown render it to HTML, so @racketmodname[commonmark] provides the @racket[document->html] and @racket[write-document-html] functions, which render a @tech{document} to HTML in the way recommended by the @CommonMark specification:
+A @tech{document} is an abstract syntax tree representing Markdown content. Most uses of Markdown render it to HTML, so @racketmodname[commonmark] also provides the @racket[document->html] and @racket[write-document-html] functions, which render a @tech{document} to HTML in the way recommended by the @CommonMark specification:
 
 @(examples
   #:eval quick-eval
@@ -125,7 +125,7 @@ Parses @racket[str] as a Markdown @tech{document}.
   doc
   (write-document-html doc))
 
-This function cannot fail: every string of Unicode characters can---somehow---be interpreted as Markdown. Of course, the interpretation may be somewhat tortured if applied to input for which such interpretation was not intended.}
+This function cannot fail: every string of Unicode characters is a valid Markdown document.}
 
 @defproc[(read-document [in input-port?]) document?]{
 Like @racket[string->document], but the input is read from the given @reftech{input port} rather than from a @reftech{string}.
@@ -136,7 +136,7 @@ Like @racket[string->document], but the input is read from the given @reftech{in
   doc
   (write-document-html doc))
 
-This function can sometimes be more efficient than @racket[(read-document (port->string in))], but probably not significantly so, as the entire @tech{document} structure must be realized in memory regardless.}
+This function may be more efficient than @racket[(read-document (port->string in))], but probably not substantially, as the entire @tech{document} structure must be realized in memory regardless.}
 
 @defboolparam[current-parse-footnotes? parse-footnotes? #:value #f]{
 Enables or disables @tech{footnote} parsing, which is an @tech{extension} to the @CommonMark specification; see @secref{extension:footnotes} for more details.
@@ -149,7 +149,7 @@ Note that the value of @racket[current-parse-footnotes?] only affects parsing, @
 @declare-exporting[commonmark/render/html commonmark]
 @defmodule[commonmark/render/html #:no-declare]{
 
-The @racketmodname[commonmark/render/html] module provides functions for rendering a parsed Markdown @tech{document} to HTML, as recommended by the @CommonMark specification. This module should generally be used in combination with @racketmodname[commonmark/parse], which provides functions for producing a @tech{document} structure from Markdown input.
+The @racketmodname[commonmark/render/html] module provides functions for rendering a parsed Markdown @tech{document} to HTML as recommended by the @CommonMark specification. This module should generally be used in combination with @racketmodname[commonmark/parse], which provides functions for producing a @tech{document} structure from Markdown input.
 
 All of the bindings provided by @racketmodname[commonmark/render/html] are also provided by @racketmodname[commonmark].}
 
@@ -171,20 +171,20 @@ Like @racket[document->html], but returns the rendered HTML as a @reftech{list} 
 @(cm-examples
   (document->xexprs (string->document "*Hello*, **markdown**!")))
 
-Note that @tech{HTML blocks} and @tech{HTML spans} are not parsed and may not even contain valid HTML, which makes them difficult to represent as an @|X-expression|. As a workaround, raw HTML will be represented as @racket[cdata] elements:
+Note that @tech{HTML blocks} and @tech{HTML spans} are not parsed and may even contain invalid HTML, which makes them difficult to represent as an @|X-expression|. As a workaround, raw HTML will be represented as @racket[cdata] elements:
 
 @(cm-examples
   #:label #f
   (document->xexprs
    (string->document "A paragraph with <marquee>raw HTML</marquee>.")))
 
-This generally works out okay, since @racket[cdata] elements render directly as their unescaped content, but it is, strictly speaking, an abuse of @racket[cdata].}
+This generally yields the desired result, as @racket[xexpr->string] renders @racket[cdata] elements directly as their unescaped content. However, strictly speaking, it is an abuse of @racket[cdata].}
 
 @deftogether[(@defparam[current-italic-tag tag symbol? #:value 'em]
               @defparam[current-bold-tag tag symbol? #:value 'strong])]{
 These @reftech{parameters} determine which HTML tag is used to render @tech{italic spans} and @tech{bold spans}, respectively. The default values of @racket['em] and @racket['strong] correspond to those required by the @CommonMark specification, but this can be semantically incorrect if “emphasis” syntax is used for purposes other than emphasis, such as italicizing the title of a book.
 
-Reasonable alternate values for @racket[current-italic-tag] and @racket[current-bold-tag] include @racket['i], @racket['b], @racket['mark], @racket['cite], or @racket['defn], all of which are elements with semantic (rather than presentational) meaning in HTML5. Of course, the “most correct” choice depends on how @tech{italic spans} and @tech{bold spans} will actually be used, so no one set of choices can be universally called the best.
+Reasonable alternate values for @racket[current-italic-tag] and @racket[current-bold-tag] include @racket['i], @racket['b], @racket['mark], @racket['cite], or @racket['defn], all of which are elements with semantic (rather than presentational) meaning in HTML5. Of course, the “most correct” choice depends on how @tech{italic spans} and @tech{bold spans} will actually be used.
 
 @(cm-examples
   (eval:alts
@@ -227,9 +227,9 @@ Reasonable alternate values for @racket[current-italic-tag] and @racket[current-
 @section[#:tag "structure"]{Document structure}
 @defmodule[commonmark/struct]{
 
-The @racket[commonmark/struct] module provides @reftech{structure types} used to represent the abstract syntax of Markdown content. The root of the syntax tree hierarchy is a @tech{document}, which contains @tech{blocks}, which in turn contain @tech{inline content}. Most users will not need to interact with these structures directly, but doing so can be useful to perform additional processing on the document before rendering it, or to render Markdown to a format other than HTML.
+The @racketmodname[commonmark/struct] module provides @reftech{structure types} used to represent Markdown content as abstract syntax. The root of every syntax tree is a @tech{document}, which contains @tech{blocks}, which in turn contain @tech{inline content}. Most users will not need to interact with these structures directly, but doing so can be useful to perform additional processing on the document before rendering it, or to render Markdown to a format other than HTML.
 
-Note that the bindings in this section are only provided by @racketmodname[commonmark/struct], @emph{not} @racketmodname[commonmark].}
+Note that the bindings in this section are only provided by @racketmodname[commonmark/struct], @emph{not} by @racketmodname[commonmark].}
 
 @defstruct*[document ([blocks (listof block?)]
                       [footnotes (listof footnote-definition?)])
@@ -271,7 +271,7 @@ A @deftech{paragraph} is a @tech{block} that contains @tech{inline content}. In 
  
 An @deftech{itemization} is a @tech{block} that contains a list of @tech{flows}. In HTML output, it corresponds to a @tt{<ul>} or @tt{<ol>} element.
 
-The @racket[style] field records whether the itemization is @cm-tech{loose} or @cm-tech{tight}: if @racket[style] is @racket['tight], paragraphs in HTML output are not wrapped in @tt{<p>} tags.
+The @racket[style] field records whether the itemization is @cm-tech{loose} or @cm-tech{tight}: if @racket[style] is @racket['tight], child paragraphs in HTML output are not wrapped in @tt{<p>} tags.
 
 If @racket[start-num] is @racket[#f], then the itemization represents a @cm-tech{bullet list}. Otherwise, the itemization represents an @cm-tech{ordered list}, and the value of @racket[start-num] is its @cm-tech{start number}.}
 
@@ -295,7 +295,7 @@ An @deftech{HTML block} is a @tech{block} that contains raw HTML content (and wi
 @defstruct*[heading ([content inline?] [depth (integer-in 1 6)]) #:transparent]{
 @see-cm[@tech{headings} @elem{@cm-section{ATX headings} and @cm-section{Setext headings}}]
 
-A @deftech{heading} has @tech{inline content} and a @tech{heading depth}. In HTML output, it corresponds to one of the @tt{<h1>} through @tt{<h6>} elements.
+A @deftech{heading} is a @tech{block} with @tech{inline content} and a @tech{heading depth}. In HTML output, it corresponds to one of the @tt{<h1>} through @tt{<h6>} elements.
 
 A @deftech{heading depth} is an integer between @racket[1] and @racket[6], inclusive, where higher numbers correspond to more-nested headings.}
 
@@ -357,15 +357,13 @@ A @deftech{hard line break} is @tech{inline content} used for separating inline 
 
 @section[#:tag "extensions"]{Extensions}
 
-By default, @racketmodname[commonmark] adheres precisely to the @CommonMark specification, which is the subset of Markdown that behaves consistently across implementations. However, many Markdown libraries implement @deftech{extensions} beyond what is specified, several of which are useful enough to have become @italic{de facto} standards across major Markdown implementations.
+By default, @racketmodname[commonmark] adheres strictly to the @CommonMark specification, which provides consistency with other Markdown implementations. However, many implementations include @deftech{extensions} beyond what @CommonMark specifies, several of which are useful enough to have become @italic{de facto} standards. Unfortunately, since extensions are not precisely specified, their interpretation can vary between implementations.
 
-Unfortunately, since such features are not precisely specified, implementations of Markdown extensions rarely agree on how exactly they ought to be parsed and rendered, especially when interactions with other Markdown features leave edge cases and ambiguities. @racketmodname[commonmark] therefore deviates from the standard only if explicitly instructed to do so, and hopefully programmers who choose to venture into such uncharted waters understand they bear some responsibility for what they are getting themselves into.
-
-This section documents all of the extensions @racketmodname[commonmark] currently supports. Note that, due to their inherently ill-specified nature, it can sometimes be difficult to determine whether a divergence in behavior between two Markdown implementations constitutes a bug or two incompatible features. For that reason, backwards compatibility of extensions’ behavior may not be perfectly maintained wherever the interpretation is not sufficiently “obvious”. Consider yourself warned.
+This section documents all of the extensions @racketmodname[commonmark] currently supports. Note that it may be difficult to determine whether a difference in behavior between two implementations of a Markdown extension constitutes a bug or two incompatible but equally valid interpretations. For that reason, full backwards compatibility of extensions’ behavior, especially in edge cases, is not guaranteed.
 
 @subsection[#:tag "extension:footnotes"]{Footnotes}
 
-@margin-note{Footnotes enjoy support from a wide variety of Markdown implementations, including @hyperlink["https://michelf.ca/projects/php-markdown/extra/#footnotes"]{PHP Markdown Extra}, @hyperlink["https://python-markdown.github.io/extensions/footnotes/"]{Python-Markdown}, @hyperlink["https://pandoc.org/MANUAL.html#footnotes"]{Pandoc}, @hyperlink["https://docs.github.com/en/github/writing-on-github/getting-started-with-writing-and-formatting-on-github/basic-writing-and-formatting-syntax#footnotes"]{GitHub Flavored Markdown}, and @|mod:markdown|. The @tt{[^label]} syntax for references and definitions is nearly universal, but minor differences exist in interpretation, and rendering varies significantly. @racketmodname[commonmark]’s implementation is not precisely identical to any of them, but it was originally based on the @cmark-gfm implementation of GitHub Flavored Markdown.}
+@margin-note{Footnotes enjoy broad support across Markdown implementations, including @hyperlink["https://michelf.ca/projects/php-markdown/extra/#footnotes"]{PHP Markdown Extra}, @hyperlink["https://python-markdown.github.io/extensions/footnotes/"]{Python-Markdown}, @hyperlink["https://pandoc.org/MANUAL.html#footnotes"]{Pandoc}, @hyperlink["https://docs.github.com/en/github/writing-on-github/getting-started-with-writing-and-formatting-on-github/basic-writing-and-formatting-syntax#footnotes"]{GitHub Flavored Markdown}, and @|mod:markdown|. The @tt{[^label]} syntax for references and definitions is essentially universal, but minor differences exist in interpretation, and rendering varies significantly. @racketmodname[commonmark]’s implementation is not precisely identical to any of them, but it was originally based on the @cmark-gfm implementation of GitHub Flavored Markdown.}
 
 @deftech{Footnotes} allow auxiliary information to be lifted out of the main document flow to avoid cluttering the body text. When footnote parsing is enabled via the @racket[current-parse-footnotes?] parameter, @cm-tech{shortcut reference links} with a @cm-tech{link label} that begins with a @litchar{^} character are instead parsed as @deftech{footnote references}. For example, the following @tech{paragraph} includes three footnote references:
 
@@ -384,9 +382,9 @@ Text between the @litchar{[^} and @litchar{]} characters constitutes the @deftec
       but it was renamed in 2010 [to avoid confusion and to reflect its
       departure from its roots](https://racket-lang.org/new-name.html).}}
 
-Syntactically, footnote definitions are a type of @cm-link["container-blocks"]{container block} and may appear within any @tech{flow}, though they are not semantically children of any flow in which they appear. Their placement does not affect their interpretation---a footnote reference may reference any footnote defined in the same document---unless two definitions have matching @tech{footnote labels}, in which case the later definition is ignored.
+Like @cm-tech{link reference definitions}, @tech{footnote definitions} are syntactically @cm-link["blocks"]{blocks} and may appear within any @tech{flow}, though they are not semantically children of any flow in which they appear. Their placement does not affect their interpretation---a footnote reference may reference any footnote defined in the same document---unless two definitions have matching @tech{footnote labels}, in which case the later definition is ignored.
 
-As mentioned above, a footnote definition may contain an arbitrary @tech{flow} consisting of any number of @tech{blocks}. All lines after the first must be indented by 4 spaces to be included in the definition (unless they are @cm-tech{lazy continuation lines}). For example, the following footnote definition includes a @tech{block quote}, an @cm-tech{indented code block}, and a @tech{paragraph}:
+As mentioned above, a footnote definition is a @cm-link["container-blocks"]{container block} with an arbitrary @tech{flow}. All lines after the first must be indented by 4 spaces to be included in the definition (unless they are @cm-tech{lazy continuation lines}). For example, the following footnote definition includes a @tech{block quote}, an @cm-tech{indented code block}, and a @tech{paragraph}:
 
 @nested[#:style 'code-inset]{@verbatim{
   [^long note]:
@@ -400,7 +398,7 @@ As mentioned above, a footnote definition may contain an arbitrary @tech{flow} c
 
 A footnote reference @emph{must} @cm-link["matches"]{match} a footnote definition somewhere in the document to be parsed as a footnote reference. If no such definition exists, the label will be parsed as literal text. Each footnote definition can be referenced an arbitrary number of times.
 
-When footnotes are parsed, each @tech{footnote reference} is represented in-place by an instance of @racket[footnote-reference], but @tech{footnote definitions} are removed from the main @tech{document} flow and collected into a list of @racket[footnote-definition] instances in a separate @racket[document-footnotes] field. This allows renderers to more easily match references to their corresponding definitions and ensures that the placement of definitions within a document cannot affect the rendered output.
+When footnotes are parsed, each @tech{footnote reference} is represented in-place by a @racket[footnote-reference] structure, but @tech{footnote definitions} are removed from the main @tech{document} flow and collected into a list of @racket[footnote-definition] structures in a separate @racket[document-footnotes] field. This allows renderers to more easily match references to their corresponding definitions and ensures that the placement of definitions within a document cannot affect the rendered output.
 
 When given a @tech{document} containing @tech{footnotes}, the @seclink["rendering-html"]{default HTML renderer} mimicks the output produced by @|cmark-gfm|. Specifically, the renderer appends a @tt{<section class="footnotes">} element to the end of the output, which wraps an @tt{<ol>} element containing the footnotes’ content:
 
@@ -460,7 +458,7 @@ Footnote references may appear inside footnote definitions, and @racketmodname[c
      [^2]: Here is footnote 2.
      [^3]: Here is footnote 3.})
 
-Note that while matching footnote references to their corresponding definitions is handled by the parser, pruning and renumbering of footnote definitions is handled entirely by the renderer, which allows alternate renderers to use alternate schemes if they so desire.
+Note that although matching footnote references to their corresponding definitions is handled by the parser, pruning and renumbering of footnote definitions is handled entirely by the renderer, which allows alternate renderers to use alternate schemes if they so desire.
 
 @section[#:tag "versus-markdown"]{Comparison with @mod:markdown}
 
