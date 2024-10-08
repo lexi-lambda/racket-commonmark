@@ -20,7 +20,8 @@
          (struct-out link)
          (struct-out image)
          (struct-out html)
-         (struct-out footnote-reference))
+         (struct-out footnote-reference)
+         (struct-out wikilink))
 
 ;; -----------------------------------------------------------------------------
 
@@ -57,7 +58,8 @@
       (link? v)
       (image? v)
       (html? v)
-      (footnote-reference? v)))
+      (footnote-reference? v)
+      (wikilink? v)))
 
 (define-values [line-break line-break?]
   (let ()
@@ -70,3 +72,4 @@
 (struct image (description source title) #:transparent)
 (struct html (content) #:transparent)
 (struct footnote-reference (label) #:transparent)
+(struct wikilink (content dest) #:transparent)

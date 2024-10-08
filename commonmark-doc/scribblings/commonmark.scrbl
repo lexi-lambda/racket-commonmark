@@ -68,6 +68,9 @@
 @(define-syntax-rule (cm-examples body ...)
    (examples #:eval (make-commonmark-eval) #:once body ...))
 
+@(define MediaWiki @hyperlink["https://www.mediawiki.org/"]{MediaWiki})
+@(define WikiLink @hyperlink["https://www.mediawiki.org/wiki/Help:Links#Internal_links"]{WikiLink})
+
 @defmodule[commonmark]{
 
 The @racketmodname[commonmark] library implements a @|CommonMark|-compliant Markdown parser. Currently, it passes all test cases in @hyperlink["https://spec.commonmark.org/0.31.2/"]{v0.31.2 of the specification}. By default, only the Markdown features specified by @CommonMark are supported, but non-standard support for @tech{footnotes} can be optionally enabled; see the @secref{extensions} section of this manual for more details.
@@ -144,6 +147,16 @@ Enables or disables @tech{footnote} parsing, which is an @tech{extension} to the
 Note that the value of @racket[current-parse-footnotes?] only affects parsing, @emph{not} rendering. If a @tech{document} containing @tech{footnotes} is rendered to HTML, the @tech{footnotes} will still be rendered even if @racket[(current-parse-footnotes?)] is @racket[#f].
 
 @history[#:added "1.1"]}
+
+@defboolparam[current-parse-wikilinks? parse-wikilinks? #:value #f]{
+Enables or disables the parsing of @|WikiLink|s. Specifically, settings this @reftech{parameter} to a value other than @racket[#f] enables the parsing of @MediaWiki internal links and piped links as @tech{wikilink}s. More complex MediaWiki link types, such as the pipe trick or word-ending links are not supported.
+
+Importantly, @tech{wikilink} parsing breaks compliance with the @CommonMark specification!
+
+@(cm-examples
+  #:label "Example:"
+  (parameterize ([current-parse-wikilinks? #t])
+    (string->document "[[link]] and [[link|label]]")))}
 
 @section[#:tag "rendering-html"]{Rendering HTML}
 @declare-exporting[commonmark/render/html commonmark]
@@ -310,7 +323,7 @@ A @deftech{thematic break} is a @tech{block}. It is usually rendered as a horizo
 @defproc[(inline? [v any/c]) boolean?]{
 @see-cm[@tech{inline content} @cm-section{Blocks and inlines}]
 
-Returns @racket[#t] if @racket[v] is @deftech{inline content}: a @reftech{string}, @tech{italic span}, @tech{bold span}, @tech{code span}, @tech{link}, @tech{image}, @tech{footnote reference}, @tech{HTML span}, @tech{hard line break}, or @reftech{list} of @tech{inline content}. Otherwise, returns @racket[#f].}
+Returns @racket[#t] if @racket[v] is @deftech{inline content}: a @reftech{string}, @tech{italic span}, @tech{bold span}, @tech{code span}, @tech{link}, @tech{wikilink}, @tech{image}, @tech{footnote reference}, @tech{HTML span}, @tech{hard line break}, or @reftech{list} of @tech{inline content}. Otherwise, returns @racket[#f].}
 
 @defstruct*[italic ([content inline?]) #:transparent]{
 @see-cm[@tech{italic spans} @cm-section{Emphasis and strong emphasis}]
@@ -343,6 +356,12 @@ An @deftech{image} is @tech{inline content} with a source path or URL that shoul
 A @tech{footnote reference} is @tech{inline content} that references a @tech{footnote definition} with a matching @tech{footnote label}. In HTML output, it corresponds to a superscript @tt{<a>} element.
 
 @history[#:added "1.1"]}
+
+@defstruct*[wikilink ([content inline?] [dest string?]) #:transparent]{
+
+A @deftech{wikilink} is @tech{inline content} that contains nested @tech{inline content} and a link destination. Following the definitions of @|WikiLink|s in @MediaWiki, the content is identical to the link destination in case of internal links.
+
+In HTML output, a @tech{wikilink} corresponds to an @tt{<a>} element.}
 
 @defstruct*[html ([content string?]) #:transparent]{
 @see-cm[@tech{HTML spans} @cm-section{Raw HTML}]
