@@ -98,6 +98,8 @@
             (a ([id ,(footnote-reference-anchor label ref-num)]
                 [href ,(~a "#" (footnote-definition-anchor (uri-path-segment-encode label)))])
                ,(~a defn-num))))
+    (define/override (render-wikilink content dest)
+      `(a ([href ,dest]) ,@content))
 
     (define/override (render-footnote-definition blocks label ref-count)
       (define encoded-label (uri-path-segment-encode label))

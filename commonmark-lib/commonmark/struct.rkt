@@ -26,4 +26,5 @@
           (struct link ([content inline?] [dest string?] [title (or/c string? #f)]))
           (struct image ([description inline?] [source string?] [title (or/c string? #f)]))
           (struct html ([content string?]))
-          (struct footnote-reference ([label string?]))))
+          (struct footnote-reference ([label string?]))
+          (struct wikilink ([content inline?] [dest string?]))))
